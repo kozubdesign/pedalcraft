@@ -143,7 +143,7 @@ function renderAssets() {
 }
 // ---------- отзывы, исполнители, альбомы ----------
 const LISTS = {
-  reviews: { title: 'Отзывы', add: 'Добавить отзыв', img: 'photo', blank: () => ({ name: '', rating: 5, date: new Date().toISOString().slice(0, 10), text: '', photo: '' }),
+  reviews: { title: 'Отзывы', add: 'Добавить отзыв', multi: true, blank: () => ({ name: '', rating: 5, date: new Date().toISOString().slice(0, 10), text: '', photos: [] }),
     fields: [['name', 'Имя'], ['rating', 'Оценка, 1–5', 'number'], ['date', 'Дата', 'date'], ['text', 'Текст отзыва', 'textarea']] },
   artists: { title: 'Кто играет на оригинале', add: 'Добавить исполнителя', img: 'photo', blank: () => ({ name: '', role: '', band: '', photo: '' }),
     fields: [['name', 'Имя Фамилия'], ['role', 'Роль (солист, гитарист…)'], ['band', 'Группа']] },
@@ -168,6 +168,19 @@ function renderLists() {
         grid.append(el('label', { className: type === 'textarea' ? 'wide' : '' }, title, inp));
       }
       const box = el('div', { className: 'item' });
+      if (cfg.multi) {
+        if (!it.photos) { it.photos = it.photo ? [it.photo] : []; delete it.photo }
+        const file = el('input', { type: 'file', multiple: true, accept: 'image/jpeg,image/png,image/webp,image/avif', ariaLabel: 'Фото к отзыву', disabled: it.photos.length >= 4 });
+        file.onchange = () => {
+          const room = Math.max(0, 4 - it.photos.length);
+          it._fs = [...file.files].slice(0, room); dirty = true;
+          if (file.files.length > room) say('В отзыве не больше 4 фото, лишние не добавлены.', true);
+        };
+        grid.append(el('label', { className: 'wide' }, `Фото (до 4, сейчас ${it.photos.length})`, file));
+        if (it.photos.length) box.append(el('div', { className: 'row asset' }, ...it.photos.map((path, n) => el('span', { className: 'thumb' },
+          el('img', { src: pcStore.media(path), alt: '' }),
+          el('button', { type: 'button', textContent: '✕', ariaLabel: 'Убрать фото', onclick: () => { it.photos.splice(n, 1); dirty = true; renderLists() } })))));
+      }
       if (cfg.img) {
         const file = el('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/avif', ariaLabel: 'Фото' });
         file.onchange = () => { it._f = file.files[0]; dirty = true };
@@ -225,8 +238,10 @@ form.onsubmit = run(async () => {
   if (p.artists.some(a => !a.name.trim())) throw Error('Укажите имя исполнителя.');
   if (p.albums.some(a => !a.title.trim())) throw Error('Укажите название альбома.');
   p.reviews.forEach(r => r.rating = Math.min(5, Math.max(1, Math.round(r.rating) || 5)));
-  const itemFiles = ['reviews', 'artists', 'albums'].flatMap(k => p[k].filter(x => x._f).map(x => ({ x, key: LISTS[k].img })));
-  itemFiles.forEach(({ x }) => checkFile(x._f, 'photos'));
+  const itemFiles = ['artists', 'albums'].flatMap(k => p[k].filter(x => x._f).map(x => ({ x, key: LISTS[k].img })));
+  if (p.reviews.some(x => (x.photos || []).length + (x._fs || []).length > 4)) throw Error('В отзыве не больше 4 фото.');
+  const reviewFiles = p.reviews.flatMap(x => (x._fs || []).map(f => ({ x, f })));
+  [...itemFiles.map(({ x }) => x._f), ...reviewFiles.map(({ f }) => f)].forEach(f => checkFile(f, 'photos'));
   const pending = ['photos', 'docs'].flatMap(k => [...$('#upload-' + k).files].map(file => ({ k, file })));
   pending.forEach(({ k, file }) => checkFile(file, k));
   const [latest] = await api(TABLE + '?id=eq.1&select=revision'); // не грузим файлы, если каталог уже устарел
@@ -237,7 +252,9 @@ form.onsubmit = run(async () => {
     p[k].push(k === 'photos' ? path : { path, title: file.name });
   }
   for (const { x, key } of itemFiles) { say('Загрузка: ' + x._f.name); x[key] = await upload(x._f, p.id, 'photos') }
-  for (const k of ['reviews', 'artists', 'albums']) p[k].forEach(x => delete x._f);
+  for (const { x, f } of reviewFiles) { say('Загрузка: ' + f.name); (x.photos ??= []).push(await upload(f, p.id, 'photos')) }
+  p.reviews.forEach(x => delete x._fs);
+  for (const k of ['artists', 'albums']) p[k].forEach(x => delete x._f);
   const products = cat.products.some(x => x.id === p.id) ? cat.products.map(x => x.id === p.id ? p : x) : [...cat.products, p];
   await save({ ...cat, products });
   renderList(p.id); openProduct(p);
