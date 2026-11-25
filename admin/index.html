@@ -46,12 +46,13 @@ main[inert]{cursor:progress}button.busy{opacity:.9}
 <div id="panel" hidden>
 <nav class="tabs"><button data-tab="products">Товары</button><button data-tab="stock">Склад и цены</button><button data-tab="faq">FAQ</button><button id="logout" data-busy="Выход…">Выйти</button></nav>
 <section id="products" data-pane><div class="row"><button id="new">Новый товар</button><button id="copy">Копия</button><button id="del" class="danger" data-busy="Удаление…">Удалить</button></div>
-<label>Товар<select id="items"></select></label>
+<div class="grid"><label>Сортировка списка<select id="sort"><option value="">Как в каталоге</option><option value="az">По названию A → Z</option><option value="za">По названию Z → A</option></select></label><label>Товар<select id="items"></select></label></div>
 <form id="product" hidden><div id="fields" class="grid"></div>
 <fieldset><legend>Фотографии</legend><small>Первая — обложка. До 10 МБ на файл.</small><div id="photos"></div><input id="upload-photos" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" aria-label="Добавить фотографии"></fieldset>
 <fieldset><legend>Документы</legend><small>Схемы, инструкции, списки деталей. До 10 МБ на файл.</small><div id="docs"></div><input id="upload-docs" type="file" multiple accept=".pdf,.zip,.txt,.csv" aria-label="Добавить документы"></fieldset>
 <fieldset><legend>Характеристики</legend><div id="specs"></div><button type="button" id="add-spec">Добавить характеристику</button></fieldset>
 <div id="lists"></div>
+<fieldset id="styles-box"><legend>Идеально для стилей</legend><label><input type="checkbox" name="showStyles" checked> Показывать блок на сайте</label><small>Снимите галочку со стиля, чтобы убрать его из блока. Список зависит от категории.</small><div id="styles" class="flags"></div></fieldset>
 <button class="primary">Сохранить товар</button></form></section>
 <section id="stock" data-pane hidden><h2>Склад и цены</h2><small>Меняйте всё сразу и жмите одну кнопку.</small>
 <form id="stock-form"><table><thead><tr><th>Товар</th><th>Цена, ₽</th><th>Остаток</th><th>На сайте</th></tr></thead><tbody id="rows"></tbody></table><p><button class="primary">Сохранить склад</button></p></form></section>
