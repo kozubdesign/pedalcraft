@@ -17,6 +17,7 @@ const SCHEMA = [
   ['active', 'Показывать на сайте', 'check'], ['hit', 'Бейдж «Хит»', 'check'], ['nw', 'Бейдж «Новинка»', 'check'],
   ['top', 'Подборка «Топ продаж»', 'check'], ['popular', 'Подборка «Популярные»', 'check'],
   ['summary', 'Краткое описание', 'textarea'], ['description', 'Полное описание', 'textarea'],
+  ['video', 'Видео — ссылка (YouTube, Rutube или файл .mp4)'],
   ['features', 'Особенности — по одной в строке', 'textarea'], ['specs', 'Характеристики — «Название: значение», по одной в строке', 'textarea'],
 ];
 
@@ -28,8 +29,14 @@ const say = (msg, error = false) => { $('#status').textContent = msg; $('#status
 const run = work => async e => {
   e?.preventDefault();
   if (busy) return;
+  const b = e?.submitter || (e?.currentTarget instanceof HTMLButtonElement ? e.currentTarget : null);
+  const label = b?.textContent;
   busy = true; $('main').inert = true;
-  try { await work(e) } catch (err) { say(err.message, true) } finally { $('main').inert = false; busy = false }
+  if (b) { b.classList.add('busy'); b.textContent = b.dataset.busy || 'Сохранение…' }
+  try { await work(e) } catch (err) { say(err.message, true) } finally {
+    if (b) { b.classList.remove('busy'); b.textContent = label }
+    $('main').inert = false; busy = false;
+  }
 };
 
 // ---------- данные ----------
@@ -71,7 +78,7 @@ for (const [key, title, type] of SCHEMA) {
   else if (input.tagName === 'INPUT') input.type = type === 'check' ? 'checkbox' : type || 'text';
   if (type === 'number') Object.assign(input, { min: 0, max: 99999999, step: 1, required: true });
   if (['n', 'm', 'sku'].includes(key)) Object.assign(input, { maxLength: 140, required: true });
-  $('#fields').append(el('label', {}, title, input));
+  $('#fields').append(el('label', { className: type === 'textarea' || key === 'video' ? 'wide' : '' }, title, input));
 }
 form.addEventListener('input', () => dirty = true);
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault() });
@@ -92,8 +99,9 @@ function openProduct(p) {
     const e = form.elements[k];
     if (t === 'check') e.checked = Boolean(p[k]); else e.value = p[k] ?? '';
   }
+  for (const k of Object.keys(LISTS)) cur[k] ??= [];
   $('#upload-photos').value = $('#upload-docs').value = '';
-  renderAssets();
+  renderAssets(); renderLists();
 }
 function readForm() {
   const p = structuredClone(cur);
@@ -120,6 +128,47 @@ function renderAssets() {
     }));
   }
 }
+// ---------- отзывы, исполнители, альбомы ----------
+const LISTS = {
+  reviews: { title: 'Отзывы', add: 'Добавить отзыв', blank: () => ({ name: '', rating: 5, date: new Date().toISOString().slice(0, 10), text: '' }),
+    fields: [['name', 'Имя'], ['rating', 'Оценка, 1–5', 'number'], ['date', 'Дата', 'date'], ['text', 'Текст отзыва', 'textarea']] },
+  artists: { title: 'Кто играет на оригинале', add: 'Добавить исполнителя', img: 'photo', blank: () => ({ name: '', role: '', band: '', photo: '' }),
+    fields: [['name', 'Имя Фамилия'], ['role', 'Роль (солист, гитарист…)'], ['band', 'Группа']] },
+  albums: { title: 'Альбомы, записанные с этой педалью', add: 'Добавить альбом', img: 'cover', blank: () => ({ title: '', band: '', year: '', cover: '' }),
+    fields: [['title', 'Название альбома'], ['band', 'Группа'], ['year', 'Год']] },
+};
+for (const [kind, cfg] of Object.entries(LISTS)) {
+  $('#lists').append(el('fieldset', {}, el('legend', { textContent: cfg.title }), el('div', { id: 'list-' + kind }),
+    btn(cfg.add, () => { cur[kind].push(cfg.blank()); dirty = true; renderLists() })));
+}
+function renderLists() {
+  for (const [kind, cfg] of Object.entries(LISTS)) {
+    const items = cur[kind];
+    $('#list-' + kind).replaceChildren(...items.map((it, i) => {
+      const grid = el('div', { className: 'grid' });
+      for (const [key, title, type] of cfg.fields) {
+        const inp = el(type === 'textarea' ? 'textarea' : 'input');
+        if (type !== 'textarea') inp.type = type || 'text';
+        if (type === 'number') Object.assign(inp, { min: 1, max: 5, step: 1 });
+        inp.value = it[key] ?? '';
+        inp.oninput = () => it[key] = type === 'number' ? Number(inp.value) : inp.value;
+        grid.append(el('label', { className: type === 'textarea' ? 'wide' : '' }, title, inp));
+      }
+      const box = el('div', { className: 'item' });
+      if (cfg.img) {
+        const file = el('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/avif', ariaLabel: 'Фото' });
+        file.onchange = () => { it._f = file.files[0]; dirty = true };
+        grid.append(el('label', {}, it[cfg.img] ? 'Заменить фото' : 'Фото', file));
+        if (pcStore.media(it[cfg.img])) box.append(el('img', { src: pcStore.media(it[cfg.img]), alt: '' }));
+      }
+      const up = btn('Выше', () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; renderLists() });
+      up.disabled = i === 0;
+      box.append(grid, el('div', { className: 'row' }, up, btn('Удалить', () => { items.splice(i, 1); dirty = true; renderLists() })));
+      return box;
+    }));
+  }
+}
+
 function checkFile(file, kind) {
   const type = TYPES[file.name.split('.').pop().toLowerCase()];
   if (!type || (kind === 'photos') !== type.startsWith('image/') || file.size < 1 || file.size > MAX_SIZE)
@@ -138,13 +187,13 @@ $('#new').onclick = () => {
   if (busy) return;
   const id = nextId();
   $('#items').selectedIndex = -1;
-  openProduct({ id, sku: String(id + 1).padStart(6, '0'), c: 'od', d: 1, price: 490, st: 0, pop: 0, originalPrice: 0, active: false, photos: [], docs: [] });
+  openProduct({ id, sku: String(id + 1).padStart(6, '0'), c: 'od', d: 1, price: 490, st: 0, pop: 0, originalPrice: 0, active: false, photos: [], docs: [], reviews: [], artists: [], albums: [], video: '' });
   dirty = true; say('Новый товар скрыт с витрины, пока не отметите «Показывать на сайте».');
 };
 $('#copy').onclick = () => {
   if (busy || !cur) return;
   const id = nextId();
-  openProduct({ ...readForm(), id, sku: String(id + 1).padStart(6, '0'), n: cur.n + ' (копия)', active: false, photos: [], docs: [] });
+  openProduct({ ...readForm(), id, sku: String(id + 1).padStart(6, '0'), n: cur.n + ' (копия)', active: false, photos: [], docs: [], reviews: [], artists: [], albums: [], video: '' });
   $('#items').selectedIndex = -1; dirty = true; say('Копия создана. Измените название и сохраните.');
 };
 $('#del').onclick = run(async () => {
@@ -158,6 +207,13 @@ form.onsubmit = run(async () => {
   if (!p.n || !p.m || !p.sku) throw Error('Заполните модель, производителя и артикул.');
   if (cat.products.some(x => x.id !== p.id && x.sku === p.sku)) throw Error('Такой артикул уже используется.');
   if (p.docs.some(d => !d.title.trim())) throw Error('Укажите названия документов.');
+  if (p.video && !/^https?:\/\//i.test(p.video)) throw Error('Ссылка на видео должна начинаться с https://');
+  if (p.reviews.some(r => !r.name.trim() || !r.text.trim())) throw Error('В отзывах заполните имя и текст.');
+  if (p.artists.some(a => !a.name.trim())) throw Error('Укажите имя исполнителя.');
+  if (p.albums.some(a => !a.title.trim())) throw Error('Укажите название альбома.');
+  p.reviews.forEach(r => r.rating = Math.min(5, Math.max(1, Math.round(r.rating) || 5)));
+  const itemFiles = ['artists', 'albums'].flatMap(k => p[k].filter(x => x._f).map(x => ({ x, key: LISTS[k].img })));
+  itemFiles.forEach(({ x }) => checkFile(x._f, 'photos'));
   const pending = ['photos', 'docs'].flatMap(k => [...$('#upload-' + k).files].map(file => ({ k, file })));
   pending.forEach(({ k, file }) => checkFile(file, k));
   const [latest] = await api(TABLE + '?id=eq.1&select=revision'); // не грузим файлы, если каталог уже устарел
@@ -167,6 +223,8 @@ form.onsubmit = run(async () => {
     const path = await upload(file, p.id, k);
     p[k].push(k === 'photos' ? path : { path, title: file.name });
   }
+  for (const { x, key } of itemFiles) { say('Загрузка: ' + x._f.name); x[key] = await upload(x._f, p.id, 'photos') }
+  for (const k of ['artists', 'albums']) p[k].forEach(x => delete x._f);
   const products = cat.products.some(x => x.id === p.id) ? cat.products.map(x => x.id === p.id ? p : x) : [...cat.products, p];
   await save({ ...cat, products });
   renderList(p.id); openProduct(p);
