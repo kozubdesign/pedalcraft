@@ -14,11 +14,11 @@ const CHOICES = {
 const SCHEMA = [
   ['n', 'Модель'], ['m', 'Производитель оригинала'], ['sku', 'Артикул'], ['c', 'Категория'], ['d', 'Сложность'],
   ['price', 'Цена, ₽', 'number'], ['st', 'Остаток, шт.', 'number'], ['originalPrice', 'Цена оригинала, ₽ (0 — не показывать)', 'number'], ['pop', 'Приоритет сортировки', 'number'],
-  ['active', 'Показывать на сайте', 'check'], ['hit', 'Бейдж «Хит»', 'check'], ['nw', 'Бейдж «Новинка»', 'check'],
-  ['top', 'Подборка «Топ продаж»', 'check'], ['popular', 'Подборка «Популярные»', 'check'],
+  ['active', 'На сайте', 'check'], ['hit', 'Хит', 'check'], ['nw', 'Новинка', 'check'],
+  ['top', 'Топ продаж', 'check'], ['popular', 'Популярные', 'check'],
   ['summary', 'Краткое описание', 'textarea'], ['description', 'Полное описание', 'textarea'],
   ['video', 'Видео — ссылка (YouTube, Rutube или файл .mp4)'],
-  ['features', 'Особенности — по одной в строке', 'textarea'], ['specs', 'Характеристики — «Название: значение», по одной в строке', 'textarea'],
+  ['features', 'Особенности — по одной в строке', 'textarea'], 
 ];
 
 let token = sessionStorage.pcToken, row, cat, cur, faq = [], busy = false, dirty = false;
@@ -71,6 +71,7 @@ document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => !busy && 
 
 // ---------- товары ----------
 const form = $('#product');
+const flags = el('div', { className: 'wide flags' });
 for (const [key, title, type] of SCHEMA) {
   const input = CHOICES[key] ? el('select') : type === 'textarea' ? el('textarea') : el('input');
   input.name = key;
@@ -78,7 +79,8 @@ for (const [key, title, type] of SCHEMA) {
   else if (input.tagName === 'INPUT') input.type = type === 'check' ? 'checkbox' : type || 'text';
   if (type === 'number') Object.assign(input, { min: 0, max: 99999999, step: 1, required: true });
   if (['n', 'm', 'sku'].includes(key)) Object.assign(input, { maxLength: 140, required: true });
-  $('#fields').append(el('label', { className: type === 'textarea' || key === 'video' ? 'wide' : '' }, title, input));
+  const label = el('label', { className: type === 'textarea' || key === 'video' ? 'wide' : '' }, title, input);
+  if (type === 'check') { if (!flags.parentNode) $('#fields').append(flags); flags.append(label) } else $('#fields').append(label);
 }
 form.addEventListener('input', () => dirty = true);
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault() });
@@ -100,8 +102,9 @@ function openProduct(p) {
     if (t === 'check') e.checked = Boolean(p[k]); else e.value = p[k] ?? '';
   }
   for (const k of Object.keys(LISTS)) cur[k] ??= [];
+  cur.specsList = String(p.specs || '').split('\n').filter(Boolean).map(l => { const i = l.indexOf(':'); return i < 0 ? [l.trim(), ''] : [l.slice(0, i).trim(), l.slice(i + 1).trim()] });
   $('#upload-photos').value = $('#upload-docs').value = '';
-  renderAssets(); renderLists();
+  renderAssets(); renderLists(); renderSpecs();
 }
 function readForm() {
   const p = structuredClone(cur);
@@ -109,8 +112,18 @@ function readForm() {
     const e = form.elements[k];
     p[k] = t === 'check' ? e.checked : (t === 'number' || k === 'd') ? Number(e.value) : e.value.trim();
   }
+  p.specs = (cur.specsList || []).filter(r => r[0].trim() || r[1].trim()).map(r => `${r[0].replace(/:/g, '').trim()}: ${r[1].trim()}`).join('\n');
+  delete p.specsList;
   return p;
 }
+function renderSpecs() {
+  const rows = cur.specsList;
+  $('#specs').replaceChildren(...rows.map((r, i) => el('div', { className: 'spec-row' },
+    el('input', { value: r[0], placeholder: 'Название', ariaLabel: 'Название', oninput: e => r[0] = e.target.value }),
+    el('input', { value: r[1], placeholder: 'Значение', ariaLabel: 'Значение', oninput: e => r[1] = e.target.value }),
+    el('button', { type: 'button', textContent: '✕', ariaLabel: 'Убрать характеристику', onclick: () => { rows.splice(i, 1); dirty = true; renderSpecs() } }))));
+}
+$('#add-spec').onclick = () => { if (!cur) return; cur.specsList.push(['', '']); dirty = true; renderSpecs() };
 function renderAssets() {
   for (const kind of ['photos', 'docs']) {
     const list = cur[kind];
@@ -130,7 +143,7 @@ function renderAssets() {
 }
 // ---------- отзывы, исполнители, альбомы ----------
 const LISTS = {
-  reviews: { title: 'Отзывы', add: 'Добавить отзыв', blank: () => ({ name: '', rating: 5, date: new Date().toISOString().slice(0, 10), text: '' }),
+  reviews: { title: 'Отзывы', add: 'Добавить отзыв', img: 'photo', blank: () => ({ name: '', rating: 5, date: new Date().toISOString().slice(0, 10), text: '', photo: '' }),
     fields: [['name', 'Имя'], ['rating', 'Оценка, 1–5', 'number'], ['date', 'Дата', 'date'], ['text', 'Текст отзыва', 'textarea']] },
   artists: { title: 'Кто играет на оригинале', add: 'Добавить исполнителя', img: 'photo', blank: () => ({ name: '', role: '', band: '', photo: '' }),
     fields: [['name', 'Имя Фамилия'], ['role', 'Роль (солист, гитарист…)'], ['band', 'Группа']] },
@@ -188,7 +201,7 @@ $('#new').onclick = () => {
   const id = nextId();
   $('#items').selectedIndex = -1;
   openProduct({ id, sku: String(id + 1).padStart(6, '0'), c: 'od', d: 1, price: 490, st: 0, pop: 0, originalPrice: 0, active: false, photos: [], docs: [], reviews: [], artists: [], albums: [], video: '' });
-  dirty = true; say('Новый товар скрыт с витрины, пока не отметите «Показывать на сайте».');
+  dirty = true; say('Новый товар скрыт с витрины, пока не отметите «На сайте».');
 };
 $('#copy').onclick = () => {
   if (busy || !cur) return;
@@ -198,7 +211,7 @@ $('#copy').onclick = () => {
 };
 $('#del').onclick = run(async () => {
   const p = cat.products.find(x => x.id === Number($('#items').value));
-  if (!p || !confirm(`Удалить «${label(p)}» безвозвратно? Чтобы просто скрыть товар, снимите «Показывать на сайте».`)) return;
+  if (!p || !confirm(`Удалить «${label(p)}» безвозвратно? Чтобы просто скрыть товар, снимите «На сайте».`)) return;
   await save({ ...cat, products: cat.products.filter(x => x.id !== p.id) });
   renderList(cat.products[0]?.id); openProduct(cat.products[0]); say('Товар удалён.');
 });
@@ -212,7 +225,7 @@ form.onsubmit = run(async () => {
   if (p.artists.some(a => !a.name.trim())) throw Error('Укажите имя исполнителя.');
   if (p.albums.some(a => !a.title.trim())) throw Error('Укажите название альбома.');
   p.reviews.forEach(r => r.rating = Math.min(5, Math.max(1, Math.round(r.rating) || 5)));
-  const itemFiles = ['artists', 'albums'].flatMap(k => p[k].filter(x => x._f).map(x => ({ x, key: LISTS[k].img })));
+  const itemFiles = ['reviews', 'artists', 'albums'].flatMap(k => p[k].filter(x => x._f).map(x => ({ x, key: LISTS[k].img })));
   itemFiles.forEach(({ x }) => checkFile(x._f, 'photos'));
   const pending = ['photos', 'docs'].flatMap(k => [...$('#upload-' + k).files].map(file => ({ k, file })));
   pending.forEach(({ k, file }) => checkFile(file, k));
@@ -224,7 +237,7 @@ form.onsubmit = run(async () => {
     p[k].push(k === 'photos' ? path : { path, title: file.name });
   }
   for (const { x, key } of itemFiles) { say('Загрузка: ' + x._f.name); x[key] = await upload(x._f, p.id, 'photos') }
-  for (const k of ['artists', 'albums']) p[k].forEach(x => delete x._f);
+  for (const k of ['reviews', 'artists', 'albums']) p[k].forEach(x => delete x._f);
   const products = cat.products.some(x => x.id === p.id) ? cat.products.map(x => x.id === p.id ? p : x) : [...cat.products, p];
   await save({ ...cat, products });
   renderList(p.id); openProduct(p);
