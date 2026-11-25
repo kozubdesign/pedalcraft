@@ -365,6 +365,12 @@ nav.subnav{flex:none;flex-wrap:nowrap;gap:6px;margin-left:0;order:0}nav.subnav a
   #grid .card img, #pp .card img, #sn .card img { height: 180px; }
 }
 .gm>img{width:100%;height:100%;object-fit:contain;position:absolute;inset:0}.gm{position:relative}.gm .fls{z-index:1}.gt img{width:100%;height:100%;object-fit:contain}.gt{background-image:none!important}
+
+.cmp2{grid-template-columns:1fr 1.2fr}@media(max-width:560px){.cmp2{grid-template-columns:1fr}}
+.vid.vf{cursor:auto;display:block;overflow:hidden;background:#000}.vf iframe,video.vf{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:1.25rem;background:#000}
+.rvs{display:grid;gap:12px}.rv{padding:16px 18px;border-radius:1rem;background:var(--alt)}.rvh{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.rvh time{color:var(--mu);font-size:13px;margin-left:auto}.rs{color:#F0A31E;letter-spacing:2px}.rv p{margin:8px 0 0;white-space:pre-line}
+.art2 .ph,.alb.ph{position:relative;overflow:hidden}.art2 .ph img,.alb.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+@media(min-width:1001px){#pp,#sn{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}#pp .card .im,#sn .card .im{padding:20px 22px 6px}#pp .card img,#sn .card img{height:150px}#pp .card .b,#sn .card .b{padding:10px 18px 20px}#pp .card .b h3,#sn .card .b h3{font-size:17px}}
 </style></head><body>
 <header><div class="w top">
 <a class="logo" href="#"><img src="logo.jpg" alt="">PedalCraft</a>
@@ -504,6 +510,14 @@ const SID={'Описание':'desc','Характеристики':'spec','До
 const sec=(h2,b,id)=>{id=id||SID[h2];return `<section class="ps"${id?` id="${id}"`:''}><h2>${h2}</h2>${b}</section>`};
 const STORES=[['Reverb',4.8],['Thomann',4.7],['Sweetwater',4.6],['Guitar Center',4.5],['Gear4music',4.4]];
 const PERSON=`<svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`;
+const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+const vf=src=>`<div class="vid vf"><iframe src="${src}" loading="lazy" allowfullscreen allow="fullscreen; picture-in-picture; encrypted-media" title="Видео"></iframe></div>`;
+const videoEmbed=u=>{u=String(u||'').trim();let m;if(!/^https?:\/\//i.test(u))return '';
+ if(m=u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/))return vf('https://www.youtube-nocookie.com/embed/'+m[1]);
+ if(m=u.match(/rutube\.ru\/(?:video|play\/embed)\/([a-f0-9]{32})/i))return vf('https://rutube.ru/play/embed/'+m[1]);
+ if(/\.(mp4|webm)(\?\S*)?$/i.test(u))return `<video class="vf" controls preload="metadata" src="${esc(u)}"></video>`;
+ return `<p><a class="lnk" href="${esc(u)}" target="_blank" rel="noopener">Смотреть видео →</a></p>`};
+const rvDate=d=>{const x=new Date(d);return isNaN(x)?'':x.toLocaleDateString('ru-RU')};
 function prod(id){const p=byId[id],inc=cart[p.id],rel=null,u=usd(p),rest=p.n.toLowerCase().startsWith(p.m.toLowerCase())?p.n.slice(p.m.length).trim():p.n;s.cur=id;
 crumbs(['<a href="#">Главная</a>','<a href="#" onclick="s.cats=new Set()">Каталог</a>',`<a href="#" onclick="s.cats=new Set(['${p.c}'])">${t('c')[p.c]}</a>`,`<b>${esc(nm(p))}</b>`]);
 const sp=[['Производитель оригинала',esc(p.m)],['Модель',esc(nm(p))],['Тип',t('c')[p.c]],['Сложность сборки',dots(p.d)+' '+t('lv')[p.d-1]],...String(p.specs||'').split('\n').filter(Boolean).map(l=>{const j=l.indexOf(':');return j<0?[esc(l),'']:[esc(l.slice(0,j)),esc(l.slice(j+1).trim())]})];
@@ -511,16 +525,17 @@ const kf=String(p.features||'').split('\n').filter(Boolean);
 const sim=P.filter(x=>x.c==p.c&&x.id!=p.id).sort((a,b)=>b.pop-a.pop).slice(0,4),wth=P.filter(x=>x.c!=p.c).sort((a,b)=>b.pop-a.pop).slice(0,3);
 const dc=(ic,tt,d,btn,fn)=>`<div class="dcr"><i>${ic}</i><div><b>${tt}</b><span>${d}</span></div><button class="btn o" onclick="${fn}">${btn}</button></div>`;
 const DI='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>';
-const navh=`<nav class="subnav" id="subnav">${[['desc','Описание'],['spec','Характеристики'],['docs','Документы'],['orig','Цена оригинала'],['faq2','Вопросы'],].map(x=>`<a href="#${x[0]}" data-t="${x[0]}" onclick="document.getElementById('${x[0]}').scrollIntoView({behavior:'smooth'});return false">${x[1]}</a>`).join('')}</nav>`;
+const rv=p.reviews||[],has={orig:!!p.originalPrice,prv:rv.length>0,video:!!videoEmbed(p.video)};
+const navh=`<nav class="subnav" id="subnav">${[['desc','Описание'],['spec','Характеристики'],['docs','Документы'],['orig','Цена оригинала'],['prv','Отзывы'],['video','Видео']].filter(x=>has[x[0]]!==false).map(x=>`<a href="#${x[0]}" data-t="${x[0]}" onclick="document.getElementById('${x[0]}').scrollIntoView({behavior:'smooth'});return false">${x[1]}</a>`).join('')}</nav>`;
 const left=`<div class="gal2"><div class="gth">${(p.photos||[]).map((g,i)=>`<button class="gt" onclick="gal(${i})" aria-label="Фото ${i+1}"><img src="${esc(photo(p,i))}" alt=""></button>`).join('')}</div><div class="gm" id="gm" style="background-image:none"><img src="${esc(photo(p))}" alt="${esc(nm(p))}"><div class="fls"><span class="sku">${esc(skuN(p))}</span>${badges(p)}</div></div></div>`+navh
 +sec('Описание',`<div style="white-space:pre-line">${esc(p.description)}</div>${kf.length?`<h3>Ключевые особенности</h3><ul>${kf.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}`)
 +sec('Характеристики',`<table class="spec">${sp.map(x=>`<tr><th>${x[0]}</th><td>${x[1]}</td></tr>`).join('')}</table>`)
 +sec('Документы к плате',`<div class="dcs">${(p.docs||[]).filter(d=>pcStore.media(d.path)).map(d=>`<div class="dcr"><i>${DI}</i><div><b>${esc(d.title)}</b></div><a class="btn o" href="${esc(pcStore.media(d.path))}" target="_blank" rel="noopener">Открыть файл</a></div>`).join('')||'<p>Документы ещё не загружены.</p>'}</div>`)
-+sec('Стоимость оригинальной педали',p.originalPrice?`<p>Ориентир: <b>${fmt(p.originalPrice)} ₽</b>. Плата PedalCraft: <b>${fmt(p.price)} ₽</b>.</p>`:'<p>Цена оригинала не указана.</p>')
-+sec('Вопросы и ответы о плате',`<div class="acc">${faqP(p).map(x=>acc(x[0],x[1])).join('')}</div>`)
-+sec('Видео',`<div class="vid" onclick="toast(t('soon'))" role="button" aria-label="Видео"><span>▶</span></div><p class="mu" style="margin:8px 0 0">Видео по сборке появится позже.</p>`)
-+sec('Кто играет на оригинале',`<div class="arts">${['Солист','Гитарист','Басист','Клавишник'].map((r,i)=>`<div class="art2"><div class="ph">${avatar(i)}<img src="img/artists/${i+1}.jpg" alt="" onerror="this.remove()"></div><b>Имя Фамилия</b><span>${r}</span><small>Название группы</small></div>`).join('')}</div>`)
-+sec('Альбомы, записанные с этой педалью',`<div class="albs">${[0,1,2,3].map(i=>`<div class="al"><div class="alb ph">${cover(i)}<img src="img/albums/${i+1}.jpg" alt="" onerror="this.remove()"></div><b>Название альбома</b><small>Группа · 202${i+1}</small></div>`).join('')}</div>`)
++(p.originalPrice?sec('Стоимость оригинальной педали',`<div class="cmp cmp2"><div><small>Оригинал стоит от</small><b>${fmt(p.originalPrice)} ₽</b></div><div class="g"><small>Плата PedalCraft</small><b>${fmt(p.price)} ₽</b><em>${Math.max(1,Math.round(p.price/p.originalPrice*100))}% от цены оригинала</em></div></div><p class="mu note">Детали и корпус покупаются отдельно. Цена оригинала примерная, указана для сравнения.</p>`):'')
++(has.video?sec('Видео',videoEmbed(p.video),'video'):'')
++(rv.length?sec('Отзывы',`<p class="mu" style="margin:0 0 12px"><span class="rs">★</span> ${(rv.reduce((a,r)=>a+r.rating,0)/rv.length).toFixed(1)} из 5, ${rv.length} ${pl(rv.length,'отзыв','отзыва','отзывов')}</p><div class="rvs">${rv.map(r=>`<div class="rv"><div class="rvh"><b>${esc(r.name)}</b><span class="rs" aria-label="Оценка ${r.rating} из 5">${stars(r.rating)}</span><time>${rvDate(r.date)}</time></div><p>${esc(r.text)}</p></div>`).join('')}</div>`,'prv'):'')
++((p.artists||[]).length?sec('Кто играет на оригинале',`<div class="arts">${p.artists.map((a,i)=>{const src=pcStore.media(a.photo);return `<div class="art2"><div class="ph">${avatar(i)}${src?`<img src="${esc(src)}" alt="${esc(a.name)}" onerror="this.remove()">`:''}</div><b>${esc(a.name)}</b><span>${esc(a.role)}</span><small>${esc(a.band)}</small></div>`}).join('')}</div>`):'')
++((p.albums||[]).length?sec('Альбомы, записанные с этой педалью',`<div class="albs">${p.albums.map((a,i)=>{const src=pcStore.media(a.cover);return `<div class="al"><div class="alb ph">${cover(i)}${src?`<img src="${esc(src)}" alt="${esc(a.title)}" onerror="this.remove()">`:''}</div><b>${esc(a.title)}</b><small>${esc([a.band,a.year].filter(Boolean).join(', '))}</small></div>`}).join('')}</div>`):'')
 +sec('Идеально для стилей',`<p class="mu" style="margin:0 0 14px">Для каждого стиля — форма сигнала и то, как он звучит в миксе.</p><div class="gls">${GEN[p.c].map(styleRow).join('')}</div>`);
 
 const right=`<aside class="pcol"><small class="mu">${t('c')[p.c]}</small><h1 class="pn"><span class="bm">${esc(p.m)}</span> ${esc(rest)}</h1><p class="sd">${esc(p.summary)}</p>
@@ -545,7 +560,7 @@ function cmpOpen(){const l=[...cmp].map(i=>byId[i]),R=[['',p=>`<img src="${esc(p
 $('#cmpm').innerHTML=`<div class="cmpd"><button class="x" onclick="cmpClose()" aria-label="Закрыть">✕</button><h2>Сравнение плат</h2><div class="cmpt" style="grid-template-columns:130px repeat(${l.length},1fr)">${R.map(r=>`<span class="cl0">${r[0]}</span>`+l.map(p=>`<span>${r[1](p)}</span>`).join('')).join('')}</div></div>`;$('#cmpm').classList.add('on')}
 function seenAdd(id){let l=[];try{l=JSON.parse(localStorage.pcSeen||'[]')}catch(e){}l=[id,...l.filter(x=>x!==id)].slice(0,12);try{localStorage.pcSeen=JSON.stringify(l)}catch(e){}}
 function seenUI(){let l=[];try{l=JSON.parse(localStorage.pcSeen||'[]')}catch(e){}l=l.filter(x=>x!==s.cur&&byId[x]).slice(0,4);$('#sn').innerHTML=l.map(i=>card(byId[i])).join('');$('#seen').hidden=!l.length||s.cur<0}
-function spy(){const n=$('#subnav');if(!n)return;let a='';['desc','spec','docs','orig','faq2'].forEach(k=>{const e=document.getElementById(k);if(e&&e.getBoundingClientRect().top<=170)a=k});n.querySelectorAll('a').forEach(x=>x.classList.toggle('on',x.dataset.t==a))}
+function spy(){const n=$('#subnav');if(!n)return;let a='';['desc','spec','docs','orig','prv','video'].forEach(k=>{const e=document.getElementById(k);if(e&&e.getBoundingClientRect().top<=170)a=k});n.querySelectorAll('a').forEach(x=>x.classList.toggle('on',x.dataset.t==a))}
 function catGo(c){s.cats=new Set([c]);s.flag='';s.q='';$('#q').value='';if(location.hash)location.hash='';else route();go();scrollTo(0,0)}
 function byMaker(m){s.mk=new Set([m]);if(location.hash)location.hash='';else route();go();scrollTo(0,0)}
 function add(id){cart[id]=(cart[id]||0)+1;renderCart();toast(t('added'))}
