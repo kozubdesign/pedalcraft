@@ -343,4 +343,3 @@ $('#logout').onclick = run(async () => {
 showTab('products');
 if (!pcStore.configured) say('Подключите Supabase по README. Пока витрина показывает catalog.json.');
 else if (token) run(init)().then(() => { if (!cat) say('Сессия истекла, войдите снова.') });
-
