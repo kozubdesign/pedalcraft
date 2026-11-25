@@ -373,14 +373,14 @@ nav.subnav{flex:none;flex-wrap:nowrap;gap:6px;margin-left:0;order:0}nav.subnav a
 @media(min-width:1001px){#pp,#sn{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}#pp .card .im,#sn .card .im{padding:20px 22px 6px}#pp .card img,#sn .card img{height:150px}#pp .card .b,#sn .card .b{padding:10px 18px 20px}#pp .card .b h3,#sn .card .b h3{font-size:17px}}
 .rvp img{display:block;margin-top:10px;max-width:240px;max-height:170px;border-radius:.75rem;object-fit:cover}
 
-.rvw{display:grid;grid-template-columns:290px 1fr;gap:24px;align-items:start}.rvs2{background:var(--alt);border-radius:1.5rem;padding:24px;display:flex;flex-direction:column;gap:8px}
-.rvs2 .big{font-size:56px;line-height:1;color:var(--hd)}.rvs2 .rs{font-size:22px}.rvs2 small{color:var(--mu);margin-bottom:6px}
+.rvw{display:grid;grid-template-columns:290px 1fr;gap:24px;align-items:start}.rvs2{position:sticky;top:90px;background:var(--alt);border-radius:1.5rem;padding:24px;display:flex;flex-direction:column;gap:8px}
+.rvs2 .rbig{font-size:56px;line-height:1;color:var(--hd)}.rvs2 .rs{font-size:22px}.rvs2 small{color:var(--mu);margin-bottom:6px}
 .bar{display:grid;grid-template-columns:34px 1fr;align-items:center;gap:8px;font-size:14px}.bar i{display:block;height:10px;border-radius:6px;background:var(--bd)}.bar u{display:block;height:100%;border-radius:6px;background:#FFB400}.rvs2 .btn{margin-top:12px}
-.rvg{display:grid;grid-template-columns:1fr 1fr;gap:16px}.rv2{padding:18px;border-radius:1rem;background:var(--alt);display:flex;flex-direction:column;gap:10px}.rv2[hidden]{display:none}
-.rvh2{display:flex;align-items:center;gap:10px}.rvh2>div{display:flex;flex-direction:column;line-height:1.25}.rvh2 small{color:var(--mu);font-size:13px}.rvh2>.rs{margin-left:auto}
+.rvg{display:grid;grid-template-columns:1fr;gap:14px}.rv2{padding:18px;border-radius:1rem;background:var(--alt);display:flex;flex-direction:column;gap:10px}.rv2[hidden]{display:none}
+.rvh2{display:flex;align-items:center;gap:10px}.rvh2>div{display:flex;flex-direction:column;line-height:1.25;min-width:0}.rvh2 small{color:var(--mu);font-size:13px}.rvh2>.rs{margin-left:auto}
 .rva{width:40px;height:40px;border-radius:50%;background:#DCEEDF;color:#1B6B36;display:grid;place-items:center;font-weight:700;flex:none}
 .rv2 p{margin:0;white-space:pre-line}.rv2 time{color:var(--mu);font-size:13px}.rvph{display:flex;gap:6px;flex-wrap:wrap}.rvph img{width:76px;height:76px;border-radius:10px;object-fit:cover;display:block}
-@media(max-width:980px){.rvw{grid-template-columns:1fr}}@media(max-width:640px){.rvg{grid-template-columns:1fr}}
+@media(max-width:980px){.rvw{grid-template-columns:1fr}.rvs2{position:static}}
 </style></head><body>
 <header><div class="w top">
 <a class="logo" href="#"><img src="logo.jpg" alt="">PedalCraft</a>
@@ -527,7 +527,7 @@ function rvAll(btn){document.querySelectorAll('.rv2.more').forEach(e=>e.hidden=f
 const rvBlock=(p,rv)=>{const n=rv.length,avg=rv.reduce((a,r)=>a+r.rating,0)/n,dist=[5,4,3,2,1].map(v=>rv.filter(r=>r.rating===v).length);
  const card=(r,i)=>{const ph=(r.photos||(r.photo?[r.photo]:[])).map(x=>pcStore.media(x)).filter(Boolean).slice(0,4);
   return `<article class="rv2${i>3?' more':''}"${i>3?' hidden':''}><div class="rvh2"><span class="rva">${esc(([...String(r.name)][0]||'?').toUpperCase())}</span><div><b>${esc(r.name)}</b><small>${esc(nm(p))}</small></div><span class="rs" aria-label="Оценка ${r.rating} из 5">${stars(r.rating)}</span></div><p>${esc(r.text)}</p>${ph.length?`<div class="rvph">${ph.map(s=>`<a href="${esc(s)}" target="_blank" rel="noopener"><img src="${esc(s)}" alt="Фото к отзыву" loading="lazy"></a>`).join('')}</div>`:''}<time>${rvDate(r.date)}</time></article>`};
- return `<div class="rvw"><div class="rvs2"><b class="big">${avg.toFixed(1)}</b><div class="rs">${stars(Math.round(avg))}</div><small>на основе ${n} ${pl(n,'отзыв','отзыва','отзывов')}</small>${dist.map((c,i)=>`<div class="bar"><span>${5-i} ★</span><i><u style="width:${Math.round(c/n*100)}%"></u></i></div>`).join('')}${n>4?'<button class="btn" onclick="rvAll(this)">Все отзывы</button>':''}</div><div class="rvg">${rv.map(card).join('')}</div></div>`};
+ return `<div class="rvw"><div class="rvs2"><b class="rbig">${avg.toFixed(1)}</b><div class="rs">${stars(Math.round(avg))}</div><small>на основе ${n} ${pl(n,'отзыв','отзыва','отзывов')}</small>${dist.map((c,i)=>`<div class="bar"><span>${5-i} ★</span><i><u style="width:${Math.round(c/n*100)}%"></u></i></div>`).join('')}${n>4?'<button class="btn" onclick="rvAll(this)">Все отзывы</button>':''}</div><div class="rvg">${rv.map(card).join('')}</div></div>`};
 const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
 const vf=src=>`<div class="vid vf"><iframe src="${src}" loading="lazy" allowfullscreen allow="fullscreen; picture-in-picture; encrypted-media" title="Видео"></iframe></div>`;
 const videoEmbed=u=>{u=String(u||'').trim();let m;if(!/^https?:\/\//i.test(u))return '';
