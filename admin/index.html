@@ -1,1 +1,60 @@
-
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Админка PedalCraft</title><style>
+:root{--ink:#17211B;--mut:#5B6760;--bg:#EEF1EE;--card:#fff;--line:#D9E0DB;--pcb:#14301F;--pcb2:#1F4D31;--acc:#F0481E;--acc-h:#D93E15;--ok:#1B6B36;--okbg:#E4F3E8;--err:#A01C15;--errbg:#FCE9E6;--ring:rgba(240,72,30,.28)}
+@media(prefers-color-scheme:dark){:root{--ink:#E6EBE7;--mut:#9AA6A0;--bg:#0E1511;--card:#151E18;--line:#27342B;--pcb:#09170F;--pcb2:#1A4029;--ok:#7FD39A;--okbg:#12301D;--err:#FF8F84;--errbg:#3A1512}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.top{background:var(--pcb);border-bottom:3px solid var(--acc)}
+.bar{max-width:1040px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:700;font-size:18px;letter-spacing:-.01em}
+.brand img{width:34px;height:34px;border-radius:8px}.brand small{font-weight:500;font-size:14px;color:#A9C4B3;margin-left:2px}
+.back{color:#CFE3D6;text-decoration:none;font-size:14px;padding:6px 12px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--pcb2)}.back:hover{background:var(--pcb2);color:#fff}
+main{max-width:1040px;margin:20px auto 96px;padding:0 16px}
+h2{font-size:20px;letter-spacing:-.01em;margin:0 0 4px}
+section,form,fieldset{background:var(--card);padding:20px;border:1px solid var(--line);border-radius:14px;margin:14px 0}
+fieldset{border-radius:10px;padding:14px 16px}legend{font-weight:600;padding:0 6px}
+#status{margin:14px 0;padding:10px 14px;border-radius:10px;background:var(--okbg);color:var(--ok);white-space:pre-wrap;font-weight:500}
+#status:empty{display:none}#status[data-error=true]{background:var(--errbg);color:var(--err)}
+label{display:block;margin:8px 0;font-size:13px;font-weight:600;color:var(--mut)}
+input:not([type=checkbox]),textarea,select{display:block;width:100%;margin-top:4px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit;font-weight:400}
+textarea{height:120px;min-height:0;resize:none}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:0;box-shadow:0 0 0 3px var(--ring);border-color:var(--acc)}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc);margin:0}
+label:has(input[type=checkbox]){display:flex;flex-direction:row-reverse;justify-content:flex-end;align-items:center;gap:8px;color:var(--ink);font-weight:500;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:0 16px}.wide{grid-column:1/-1}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-weight:600;font-size:14px;padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{border-color:var(--mut)}button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}button.primary:hover{background:var(--acc-h);border-color:var(--acc-h)}
+button.danger{color:var(--err)}button.danger:hover{background:var(--errbg);border-color:var(--err)}
+.tabs{display:flex;gap:4px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;flex-wrap:wrap}
+.tabs button{border-color:transparent;background:none;color:var(--mut)}.tabs button:hover{color:var(--ink)}
+.tabs button.on{background:var(--pcb);color:#fff;border-color:var(--pcb)}.tabs #logout{margin-left:auto}
+#product>.primary{position:sticky;bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:11px 22px}
+.asset{padding:8px 0;border-bottom:1px solid var(--line)}.asset img{height:62px;width:82px;object-fit:contain;background:var(--bg);border-radius:8px}.asset input{max-width:320px;margin:0}
+a{color:var(--acc-h)}small{color:var(--mut)}
+.flags{display:flex;flex-wrap:wrap;gap:4px 22px;margin:6px 0}.flags label{margin:0}
+.spec-row{display:grid;grid-template-columns:1fr 1.4fr auto;gap:8px;margin:0 0 8px}.spec-row input{margin:0}
+.item{padding:12px 0;border-bottom:1px solid var(--line)}.item>img{width:72px;height:72px;object-fit:cover;border-radius:8px;margin-bottom:8px}.item input[type=file]{padding:6px}.thumb{position:relative;display:inline-block}.thumb img{width:72px;height:72px;object-fit:cover;border-radius:8px;display:block}.thumb button{position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:50%;line-height:20px}
+table{width:100%;border-collapse:collapse;margin-top:10px}th{font-size:13px;color:var(--mut);font-weight:600}
+td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}tbody tr:hover{background:var(--bg)}td input[type=number]{width:104px;margin:0}
+button.busy::before{content:"";display:inline-block;width:.9em;height:.9em;margin-right:.5em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-.1em;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){button.busy::before{animation-duration:2.4s}}
+main[inert]{cursor:progress}button.busy{opacity:.9}
+</style><script src="../config.js" defer></script><script src="../store.js" defer></script><script src="admin.js" defer></script></head><body><header class="top"><div class="bar"><a class="brand" href="../"><img src="../logo.jpg" alt="">PedalCraft<small>админка</small></a><a class="back" href="../">Открыть витрину</a></div></header>
+<main><p id="status" role="status" aria-live="polite"></p>
+<form id="login"><h2>Вход</h2><label>Email<input name="email" type="email" autocomplete="username" required></label><label>Пароль<input name="password" type="password" autocomplete="current-password" required></label><button class="primary" data-busy="Вход…">Войти</button></form>
+<div id="panel" hidden>
+<nav class="tabs"><button data-tab="products">Товары</button><button data-tab="stock">Склад и цены</button><button data-tab="faq">FAQ</button><button id="logout" data-busy="Выход…">Выйти</button></nav>
+<section id="products" data-pane><div class="row"><button id="new">Новый товар</button><button id="copy">Копия</button><button id="del" class="danger" data-busy="Удаление…">Удалить</button></div>
+<div class="grid"><label>Сортировка списка<select id="sort"><option value="">Как в каталоге</option><option value="az">По названию A → Z</option><option value="za">По названию Z → A</option></select></label><label>Товар<select id="items"></select></label></div>
+<form id="product" hidden><div id="fields" class="grid"></div>
+<fieldset><legend>Фотографии</legend><small>Первая — обложка. До 10 МБ на файл.</small><div id="photos"></div><input id="upload-photos" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" aria-label="Добавить фотографии"></fieldset>
+<fieldset><legend>Документы</legend><small>Схемы, инструкции, списки деталей. До 10 МБ на файл.</small><div id="docs"></div><input id="upload-docs" type="file" multiple accept=".pdf,.zip,.txt,.csv" aria-label="Добавить документы"></fieldset>
+<fieldset><legend>Характеристики</legend><div id="specs"></div><button type="button" id="add-spec">Добавить характеристику</button></fieldset>
+<div id="lists"></div>
+<fieldset id="styles-box"><legend>Идеально для стилей</legend><label><input type="checkbox" name="showStyles" checked> Показывать блок на сайте</label><small>Снимите галочку со стиля, чтобы убрать его из блока. Список зависит от категории.</small><div id="styles" class="flags"></div></fieldset>
+<button class="primary">Сохранить товар</button></form></section>
+<section id="stock" data-pane hidden><h2>Склад и цены</h2><small>Меняйте всё сразу и жмите одну кнопку.</small>
+<form id="stock-form"><table><thead><tr><th>Товар</th><th>Цена, ₽</th><th>Остаток</th><th>На сайте</th></tr></thead><tbody id="rows"></tbody></table><p><button class="primary">Сохранить склад</button></p></form></section>
+<section id="faq" data-pane hidden><h2>FAQ витрины</h2><form id="faq-form"><div id="questions"></div><div class="row"><button type="button" id="new-question">Добавить вопрос</button><button class="primary">Сохранить FAQ</button></div></form></section>
+</div></main></body></html>
