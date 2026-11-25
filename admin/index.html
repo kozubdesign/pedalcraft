@@ -1,0 +1,25 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Админка PedalCraft</title><style>
+*{box-sizing:border-box}body{font:16px/1.45 system-ui,sans-serif;background:#f7f7f8;color:#202127;margin:0}main{max-width:1000px;margin:24px auto;padding:0 16px}
+section,form,fieldset{background:#fff;padding:16px;border:1px solid #ddd;border-radius:12px;margin:12px 0}
+input:not([type=checkbox]),textarea,select{display:block;width:100%;padding:8px;border:1px solid #aaa;border-radius:5px;font:inherit}textarea{min-height:84px}
+label{display:block;margin:8px 0}button{font:inherit;padding:7px 12px;cursor:pointer}button.primary{background:#c53817;color:#fff;border:0;border-radius:6px}
+button.on{font-weight:700;border-color:#c53817}.danger{color:#a01c15}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:0 12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#status{min-height:2em;white-space:pre-wrap}#status[data-error=true]{color:#a01c15}
+.asset{padding:8px 0;border-bottom:1px solid #eee}.asset img{height:62px;width:82px;object-fit:contain}.asset input{max-width:320px}
+table{width:100%;border-collapse:collapse}td,th{padding:4px 6px;border-bottom:1px solid #eee;text-align:left}td input[type=number]{width:96px}small{color:#525660}
+</style><script src="../config.js" defer></script><script src="../store.js" defer></script><script src="admin.js" defer></script></head><body><main>
+<a href="../">← Витрина</a><h1>Админка PedalCraft</h1><p id="status" role="status" aria-live="polite"></p>
+<form id="login"><h2>Вход</h2><label>Email<input name="email" type="email" autocomplete="username" required></label><label>Пароль<input name="password" type="password" autocomplete="current-password" required></label><button class="primary">Войти</button></form>
+<div id="panel" hidden>
+<div class="row"><button data-tab="products">Товары</button><button data-tab="stock">Склад и цены</button><button data-tab="faq">FAQ</button><button id="logout">Выйти</button></div>
+<section id="products" data-pane><div class="row"><button id="new">Новый товар</button><button id="copy">Копия</button><button id="del" class="danger">Удалить</button></div>
+<label>Товар<select id="items"></select></label>
+<form id="product" hidden><div id="fields" class="grid"></div>
+<fieldset><legend>Фотографии</legend><small>Первая — обложка. До 10 МБ на файл.</small><div id="photos"></div><input id="upload-photos" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" aria-label="Добавить фотографии"></fieldset>
+<fieldset><legend>Документы</legend><small>Схемы, инструкции, списки деталей. До 10 МБ на файл.</small><div id="docs"></div><input id="upload-docs" type="file" multiple accept=".pdf,.zip,.txt,.csv" aria-label="Добавить документы"></fieldset>
+<button class="primary">Сохранить товар</button></form></section>
+<section id="stock" data-pane hidden><h2>Склад и цены</h2><small>Меняйте всё сразу и жмите одну кнопку.</small>
+<form id="stock-form"><table><thead><tr><th>Товар</th><th>Цена, ₽</th><th>Остаток</th><th>На сайте</th></tr></thead><tbody id="rows"></tbody></table><p><button class="primary">Сохранить склад</button></p></form></section>
+<section id="faq" data-pane hidden><h2>FAQ витрины</h2><form id="faq-form"><div id="questions"></div><div class="row"><button type="button" id="new-question">Добавить вопрос</button><button class="primary">Сохранить FAQ</button></div></form></section>
+</div></main></body></html>
