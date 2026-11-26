@@ -11,25 +11,68 @@ const CHOICES = {
   d: { 1: 'Лёгкая', 2: 'Средняя', 3: 'Сложная' },
 };
 const GEN = {
-  od: ['Блюз', 'Классик-рок', 'Кантри', 'Поп-рок', 'Инди'], ds: ['Рок', 'Хард-рок', 'Метал', 'Панк', 'Гранж'],
-  fz: ['Гаражный рок', 'Шугейз', 'Психоделия', 'Стоунер', 'Нойз-рок'], cp: ['Кантри', 'Фанк', 'Чистый звук', 'Поп', 'Джаз'],
-  md: ['Эмбиент', 'Шугейз', 'Поп', 'Пост-рок', 'Инди'], ot: ['Блюз', 'Рок', 'Метал', 'Поп', 'Кантри'],
+  od: ['Блюз', 'Классик-рок', 'Кантри', 'Поп-рок', 'Инди', 'Хард-рок', 'Блюз-рок', 'Саутерн-рок', 'Рок-н-ролл', 'Стоунер'],
+  ds: ['Рок', 'Хард-рок', 'Метал', 'Панк', 'Гранж', 'Стоунер', 'Альтернатива', 'Нью-метал', 'Дум-метал', 'Рок-н-ролл'],
+  fz: ['Гаражный рок', 'Шугейз', 'Психоделия', 'Стоунер', 'Нойз-рок', 'Хард-рок', 'Гранж', 'Спейс-рок', 'Блюз-рок', 'Дум-метал'],
+  cp: ['Кантри', 'Фанк', 'Чистый звук', 'Поп', 'Джаз', 'Соул', 'Фолк', 'Фьюжн', 'Реггей', 'Блюз'],
+  md: ['Эмбиент', 'Шугейз', 'Поп', 'Пост-рок', 'Инди', 'Дрим-поп', 'Психоделия', 'Синтвейв', 'Электроника', 'Спейс-рок'],
+  ot: ['Блюз', 'Рок', 'Метал', 'Поп', 'Кантри', 'Хард-рок', 'Стоунер', 'Фанк', 'Джаз', 'Инди'],
 };
 const SHOW_VIDEO = 'showVideo';
 // [ключ, подпись, тип]
 const SCHEMA = [
   ['n', 'Модель'], ['m', 'Производитель оригинала'], ['sku', 'Артикул'], ['c', 'Категория'], ['d', 'Сложность'],
   ['price', 'Цена, ₽', 'number'], ['st', 'Остаток, шт.', 'number'], ['originalPrice', 'Цена оригинала, ₽ (0 — не показывать)', 'number'], ['pop', 'Приоритет сортировки', 'number'],
-  ['active', 'На сайте', 'check'], ['hit', 'Хит', 'check'], ['nw', 'Новинка', 'check'],
-  ['top', 'Топ продаж', 'check'], ['popular', 'Популярные', 'check'],
+  ['active', 'На сайте', 'check'],
   ['summary', 'Краткое описание', 'textarea'], ['description', 'Полное описание', 'textarea'],
   ['video', 'Видео — ссылка (YouTube, Rutube или файл .mp4)'],
   ['features', 'Особенности — по одной в строке', 'textarea'], 
 ];
 
-let token = sessionStorage.pcToken, row, cat, cur, faq = [], busy = false, dirty = false;
-const api = (path, opts) => pcStore.request(path, { token, ...opts });
-const say = (msg, error = false) => { $('#status').textContent = msg; $('#status').dataset.error = error };
+// Метка на карточке: можно выбрать только одну (хранится в полях hit / nw / top)
+const BADGES = [['none', 'Без метки'], ['hit', 'Хит'], ['nw', 'Новинка']];
+const TAB_TITLES = { products: 'Товары', stock: 'Склад и цены', faq: 'FAQ витрины' };
+
+let token = sessionStorage.pcToken, row, cat, cur, faq = [], busy = false, dirty = false, tab = 'products';
+
+// ---------- сессия: токен продлевается сам, пока открыта админка ----------
+let refreshToken = sessionStorage.pcRefresh, expiresAt = Number(sessionStorage.pcExp) || 0, refreshing = null;
+function setSession(s) {
+  token = s.access_token; refreshToken = s.refresh_token || refreshToken;
+  expiresAt = s.expires_at ? s.expires_at * 1000 : Date.now() + (s.expires_in || 3600) * 1000;
+  sessionStorage.pcToken = token; sessionStorage.pcExp = expiresAt;
+  if (refreshToken) sessionStorage.pcRefresh = refreshToken;
+}
+function clearSession() {
+  token = refreshToken = undefined; expiresAt = 0;
+  for (const k of ['pcToken', 'pcRefresh', 'pcExp']) sessionStorage.removeItem(k);
+}
+// Одновременные запросы ждут один и тот же обмен токена: refresh-токен одноразовый.
+function renewSession() {
+  if (!refreshToken) return Promise.reject(Error('Сессия истекла. Войдите снова (несохранённые правки останутся в форме до перезагрузки страницы).'));
+  return refreshing ??= pcStore.request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }) })
+    .then(setSession)
+    .catch(() => { throw Error('Сессия истекла. Войдите снова (несохранённые правки останутся в форме до перезагрузки страницы).') })
+    .finally(() => { refreshing = null });
+}
+const api = async (path, opts) => {
+  if (refreshToken && expiresAt && expiresAt - Date.now() < 90_000) await renewSession();
+  try { return await pcStore.request(path, { token, ...opts }) } catch (err) {
+    if (refreshToken && (err.status === 401 || /jwt/i.test(err.message))) { await renewSession(); return pcStore.request(path, { token, ...opts }) }
+    throw err;
+  }
+};
+// Обновляем заранее, даже если вы просто редактируете текст и ничего не отправляете.
+setInterval(() => { if (token && refreshToken && expiresAt - Date.now() < 5 * 60_000) renewSession().catch(() => {}) }, 60_000);
+// Плашка слева внизу: успех пропадает через 4 с, ошибка через 8 с, по клику закрывается сразу
+let toastTimer;
+const say = (msg, error = false) => {
+  const s = $('#status');
+  clearTimeout(toastTimer);
+  s.textContent = msg; s.dataset.error = error; s.hidden = !msg;
+  if (msg) toastTimer = setTimeout(() => { s.hidden = true }, error ? 8000 : 4000);
+};
+$('#status').onclick = () => { $('#status').hidden = true };
 
 // Блокирует интерфейс на время операции и показывает ошибки.
 const run = work => async e => {
@@ -46,12 +89,12 @@ const run = work => async e => {
 };
 
 // ---------- данные ----------
-async function save(data) {
+async function save(data, { keepStock = false } = {}) {
   const res = await api(`${TABLE}?id=eq.1&revision=eq.${row.revision}&select=id,data,revision`,
     { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ data, revision: row.revision + 1 }) });
   if (!res?.length) throw Error('Каталог изменён в другой вкладке. Обновите страницу.');
   row = res[0]; cat = row.data; dirty = false;
-  renderStock();
+  if (!keepStock) renderStock();
 }
 
 async function init() {
@@ -62,7 +105,7 @@ async function init() {
       await api(TABLE, { method: 'POST', body: JSON.stringify({ id: 1, data: await pcStore.seed() }) });
       [row] = await api(QUERY);
     }
-  } catch (err) { token = undefined; sessionStorage.removeItem('pcToken'); throw err }
+  } catch (err) { clearSession(); throw err }
   cat = row.data; faq = structuredClone(cat.faq);
   renderList(cat.products[0]?.id); openProduct(cat.products[0]); renderStock(); renderFaq();
   $('#login').hidden = true; $('#panel').hidden = false; say('Данные загружены.');
@@ -70,6 +113,7 @@ async function init() {
 
 // ---------- вкладки ----------
 function showTab(name) {
+  tab = name; updateTitle();
   document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.id !== name);
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
 }
@@ -93,8 +137,13 @@ function showToggle(name, text) {
   return el('label', { className: 'wide' }, text, input);
 }
 form.elements.video.closest('label').after(showToggle(SHOW_VIDEO, 'Показывать блок «Видео» на сайте'));
+flags.after(el('fieldset', { className: 'wide' }, el('legend', { textContent: 'Метка на карточке' }),
+  el('div', { className: 'flags' }, ...BADGES.map(([v, t]) => el('label', {}, t, el('input', { type: 'radio', name: 'badge', value: v }))))));
 const TOGGLES = [SHOW_VIDEO, 'showReviews', 'showArtists', 'showAlbums', 'showStyles'];
-form.addEventListener('input', () => dirty = true);
+form.addEventListener('input', e => {
+  if (e.target.name !== 'active') dirty = true; // «На сайте» сохраняется сразу, правок не оставляет
+  if (e.target.name === 'n' || e.target.name === 'm') updateTitle();
+});
 window.addEventListener('beforeunload', e => { if (dirty) e.preventDefault() });
 
 const nextId = () => Math.max(-1, ...cat.products.map(p => p.id)) + 1;
@@ -110,7 +159,8 @@ function renderList(id) {
 }
 function openProduct(p) {
   cur = p && structuredClone(p); form.hidden = !p; dirty = false;
-  if (!p) return;
+  if (!p) { updateTitle(); return }
+  form.elements.badge.value = p.hit ? 'hit' : p.nw ? 'nw' : 'none';
   for (const [k, , t] of SCHEMA) {
     const e = form.elements[k];
     if (t === 'check') e.checked = Boolean(p[k]); else e.value = p[k] ?? '';
@@ -120,7 +170,7 @@ function openProduct(p) {
   for (const k of TOGGLES) form.elements[k].checked = p[k] !== false;
   cur.specsList = String(p.specs || '').split('\n').filter(Boolean).map(l => { const i = l.indexOf(':'); return i < 0 ? [l.trim(), ''] : [l.slice(0, i).trim(), l.slice(i + 1).trim()] });
   $('#upload-photos').value = $('#upload-docs').value = '';
-  renderAssets(); renderLists(); renderSpecs(); renderStyles();
+  renderAssets(); renderLists(); renderSpecs(); renderStyles(); updateTitle();
 }
 function readForm() {
   const p = structuredClone(cur);
@@ -129,6 +179,8 @@ function readForm() {
     p[k] = t === 'check' ? e.checked : (t === 'number' || k === 'd') ? Number(e.value) : e.value.trim();
   }
   for (const k of TOGGLES) p[k] = form.elements[k].checked;
+  const badge = form.elements.badge.value;
+  p.hit = badge === 'hit'; p.nw = badge === 'nw'; p.top = false;
   p.stylesOff = (cur.stylesOff || []).filter(n => (GEN[p.c] || []).includes(n));
   p.specs = (cur.specsList || []).filter(r => r[0].trim() || r[1].trim()).map(r => `${r[0].replace(/:/g, '').trim()}: ${r[1].trim()}`).join('\n');
   delete p.specsList;
@@ -173,7 +225,7 @@ function renderAssets() {
 // ---------- отзывы, исполнители, альбомы ----------
 const LISTS = {
   reviews: { show: 'showReviews', title: 'Отзывы', add: 'Добавить отзыв', multi: true, blank: () => ({ name: '', rating: 5, date: new Date().toISOString().slice(0, 10), text: '', photos: [] }),
-    fields: [['name', 'Имя'], ['rating', 'Оценка, 1–5', 'number'], ['date', 'Дата', 'date'], ['text', 'Текст отзыва', 'textarea']] },
+    fields: [['name', 'Имя'], ['rating', 'Оценка, 1–5', 'number'], ['date', 'Дата', 'date'], ['text', 'Текст отзыва (можно оставить пустым)', 'textarea']] },
   artists: { show: 'showArtists', title: 'Кто играет на оригинале', add: 'Добавить исполнителя', img: 'photo', blank: () => ({ name: '', role: '', band: '', photo: '' }),
     fields: [['name', 'Имя Фамилия'], ['role', 'Роль (солист, гитарист…)'], ['band', 'Группа']] },
   albums: { show: 'showAlbums', title: 'Альбомы, записанные с этой педалью', add: 'Добавить альбом', img: 'cover', blank: () => ({ title: '', band: '', year: '', cover: '' }),
@@ -210,15 +262,24 @@ function renderLists() {
           el('img', { src: pcStore.media(path), alt: '' }),
           el('button', { type: 'button', textContent: '✕', ariaLabel: 'Убрать фото', onclick: () => { it.photos.splice(n, 1); dirty = true; renderLists() } })))));
       }
-      if (cfg.img) {
-        const file = el('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/avif', ariaLabel: 'Фото' });
-        file.onchange = () => { it._f = file.files[0]; dirty = true };
-        grid.append(el('label', {}, it[cfg.img] ? 'Заменить фото' : 'Фото', file));
-        if (pcStore.media(it[cfg.img])) box.append(el('img', { src: pcStore.media(it[cfg.img]), alt: '' }));
-      }
       const up = btn('Выше', () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; renderLists() });
       up.disabled = i === 0;
-      box.append(grid, el('div', { className: 'row' }, up, btn('Удалить', () => { items.splice(i, 1); dirty = true; renderLists() })));
+      const actions = el('div', { className: 'row' }, up, btn('Удалить', () => { items.splice(i, 1); dirty = true; renderLists() }));
+      if (cfg.img) {
+        // Фото слева, поля справа
+        const file = el('input', { type: 'file', className: 'sr', accept: 'image/jpeg,image/png,image/webp,image/avif', ariaLabel: 'Фото' });
+        const fname = el('small', { className: 'fname' });
+        file.onchange = () => { it._f = file.files[0]; dirty = true; fname.textContent = it._f ? it._f.name : '' };
+        const url = pcStore.media(it[cfg.img]);
+        box.classList.add('media');
+        box.append(
+          el('div', { className: 'pic' },
+            url ? el('img', { src: url, alt: '' }) : el('span', { className: 'ph', textContent: 'Нет фото' }),
+            el('label', { className: 'pickbtn' }, url ? 'Заменить фото' : 'Загрузить фото', file), fname),
+          el('div', { className: 'mbody' }, grid, actions));
+        return box;
+      }
+      box.append(grid, actions);
       return box;
     }));
   }
@@ -243,7 +304,7 @@ $('#new').onclick = () => {
   const id = nextId();
   $('#items').selectedIndex = -1;
   openProduct({ id, sku: String(id + 1).padStart(6, '0'), c: 'od', d: 1, price: 490, st: 0, pop: 0, originalPrice: 0, active: false, photos: [], docs: [], reviews: [], artists: [], albums: [], video: '' });
-  dirty = true; say('Новый товар скрыт с витрины, пока не отметите «На сайте».');
+  dirty = true; say('Новый товар скрыт с витрины, пока не отметите «На сайте» и не нажмёте «Сохранить товар».');
 };
 $('#copy').onclick = () => {
   if (busy || !cur) return;
@@ -263,7 +324,7 @@ form.onsubmit = run(async () => {
   if (cat.products.some(x => x.id !== p.id && x.sku === p.sku)) throw Error('Такой артикул уже используется.');
   if (p.docs.some(d => !d.title.trim())) throw Error('Укажите названия документов.');
   if (p.video && !/^https?:\/\//i.test(p.video)) throw Error('Ссылка на видео должна начинаться с https://');
-  if (p.reviews.some(r => !r.name.trim() || !r.text.trim())) throw Error('В отзывах заполните имя и текст.');
+  if (p.reviews.some(r => !r.name.trim())) throw Error('В отзывах укажите имя.');
   if (p.artists.some(a => !a.name.trim())) throw Error('Укажите имя исполнителя.');
   if (p.albums.some(a => !a.title.trim())) throw Error('Укажите название альбома.');
   p.reviews.forEach(r => r.rating = Math.min(5, Math.max(1, Math.round(r.rating) || 5)));
@@ -290,11 +351,50 @@ form.onsubmit = run(async () => {
   say(p.active ? 'Сохранено и опубликовано.' : 'Сохранено, на витрине скрыто.');
 });
 
+// ---------- шапка с названием товара ----------
+function updateTitle() {
+  const t = $('#ptitle');
+  if (tab !== 'products') { t.textContent = TAB_TITLES[tab] || ''; return }
+  if (!cur) { t.textContent = TAB_TITLES.products; return }
+  const m = form.elements.m.value.trim(), n = form.elements.n.value.trim();
+  t.textContent = (n.toLowerCase().startsWith(m.toLowerCase()) ? n : `${m} ${n}`).trim() || 'Новый товар';
+}
+
+// ---------- «На сайте»: сохраняется сразу ----------
+function syncActive(id, value) {
+  if (cur && cur.id === id) form.elements.active.checked = value;
+  const r = document.querySelector(`#rows input[data-k="active"][data-id="${id}"]`);
+  if (r) r.checked = value;
+}
+// Пишем в каталог только флаг «На сайте»; несохранённые правки в форме и в таблице склада остаются как были.
+const toggleActive = (id, input) => run(async () => {
+  const want = input.checked, p = cat.products.find(x => x.id === id);
+  if (!p) { say('Товар ещё не сохранён. Нажмите «Сохранить товар», чтобы опубликовать.'); return }
+  const wasDirty = dirty;
+  try {
+    await save({ ...cat, products: cat.products.map(x => x.id === id ? { ...x, active: want } : x) }, { keepStock: true });
+  } catch (err) { syncActive(id, !want); throw err }
+  dirty = wasDirty;
+  syncActive(id, want);
+  renderList($('#items').selectedIndex < 0 ? cur?.id : Number($('#items').value));
+  say(`«${p.m} — ${p.n}»: ${want ? 'показан на сайте' : 'скрыт с сайта'}.`);
+});
+form.elements.active.addEventListener('change', e => cur && toggleActive(cur.id, e.target)(e));
+
+// ---------- текстовые поля растут вместе с текстом (минимум 200 px) ----------
+const fit = t => { if (!t.offsetParent) return; t.style.height = 'auto'; t.style.height = Math.max(200, t.scrollHeight + 2) + 'px' };
+let fitQueued = false;
+const fitAll = () => { if (fitQueued) return; fitQueued = true; requestAnimationFrame(() => { fitQueued = false; document.querySelectorAll('textarea').forEach(fit) }) };
+document.addEventListener('input', e => { if (e.target instanceof HTMLTextAreaElement) fit(e.target) });
+new MutationObserver(fitAll).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+addEventListener('resize', fitAll);
+
 // ---------- склад ----------
 function renderStock() {
   const cell = (p, k) => {
     const i = el('input', { type: k === 'active' ? 'checkbox' : 'number', min: 0 });
     i.dataset.id = p.id; i.dataset.k = k;
+    if (k === 'active') i.onchange = e => toggleActive(p.id, i)(e);
     k === 'active' ? i.checked = p.active : i.value = p[k];
     return el('td', {}, i);
   };
@@ -333,11 +433,11 @@ $('#login').onsubmit = run(async e => {
   const data = new FormData(e.target);
   say('Вход…');
   const session = await api('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: data.get('email'), password: data.get('password') }) });
-  e.target.reset(); token = session.access_token; sessionStorage.pcToken = token; // живёт до закрытия вкладки
+  e.target.reset(); setSession(session); // живёт до закрытия вкладки, токен продлевается сам
   await init();
 });
 $('#logout').onclick = run(async () => {
-  try { await api('/auth/v1/logout?scope=local', { method: 'POST' }) } finally { sessionStorage.removeItem('pcToken'); location.reload() }
+  try { await api('/auth/v1/logout?scope=local', { method: 'POST' }) } finally { clearSession(); location.reload() }
 });
 
 showTab('products');
