@@ -25,8 +25,8 @@ const SCHEMA = [
   ['price', 'Цена, ₽', 'number'], ['st', 'Остаток, шт.', 'number'], ['originalPrice', 'Цена оригинала, ₽ (0 — не показывать)', 'number'], ['pop', 'Приоритет сортировки', 'number'],
   ['active', 'На сайте', 'check'],
   ['summary', 'Краткое описание', 'textarea'], ['description', 'Полное описание', 'textarea'],
+  ['features', 'Особенности — по одной в строке', 'textarea'],
   ['video', 'Видео — ссылка (YouTube, Rutube или файл .mp4)'],
-  ['features', 'Особенности — по одной в строке', 'textarea'], 
 ];
 
 // Метка на карточке: можно выбрать только одну (хранится в полях hit / nw / top)
@@ -136,7 +136,7 @@ function showToggle(name, text) {
   const input = el('input', { type: 'checkbox', name, checked: true });
   return el('label', { className: 'wide' }, text, input);
 }
-form.elements.video.closest('label').after(showToggle(SHOW_VIDEO, 'Показывать блок «Видео» на сайте'));
+$('#video-box').append(showToggle(SHOW_VIDEO, 'Показывать блок «Видео» на сайте'), form.elements.video.closest('label'));
 flags.after(el('fieldset', { className: 'wide' }, el('legend', { textContent: 'Метка на карточке' }),
   el('div', { className: 'flags' }, ...BADGES.map(([v, t]) => el('label', {}, t, el('input', { type: 'radio', name: 'badge', value: v }))))));
 const TOGGLES = [SHOW_VIDEO, 'showReviews', 'showArtists', 'showAlbums', 'showStyles'];
