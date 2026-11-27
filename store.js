@@ -7,7 +7,7 @@ window.pcStore=(()=>{
  const request=async(path,{token,...opts}={})=>{
    const r=await fetch(base+path,{...opts,headers:{apikey:key,...(token?{Authorization:'Bearer '+token}:{}),'Content-Type':'application/json',...opts.headers}});
    const body=await r.text();let data;try{data=JSON.parse(body)}catch{data=body}
-   if(!r.ok)throw Error(data?.msg||data?.message||data?.error_description||`Ошибка HTTP ${r.status}`);return data;
+   if(!r.ok){const e=Error(data?.msg||data?.message||data?.error_description||`Ошибка HTTP ${r.status}`);e.status=r.status;throw e}return data;
  };
  const load=async()=>{const data=configured?await request('/rest/v1/rpc/pc_public_catalog',{method:'POST',body:'{}'}):await seed();if(!data)throw Error('Каталог ещё не инициализирован.');return data;};
  return {configured,request,media,seed,load};
